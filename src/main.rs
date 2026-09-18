@@ -1,5 +1,7 @@
 #![feature(iter_next_chunk)]
 
+use std::mem::MaybeUninit;
+
 #[derive(Debug, Clone, Copy)]
 struct Index(usize);
 
@@ -89,6 +91,13 @@ impl Dag {
                 },
             }
         }
+    }
+
+    fn new_layer<const P: usize, const N: usize, const M: usize>(
+        &mut self,
+        input: &Layer<P, N>,
+    ) -> Layer<N, M> {
+        Layer::new(self, input)
     }
 }
 
@@ -201,19 +210,17 @@ impl<const I: usize, const M: usize, const O: usize, const L: usize>
 
         let input = Layer::new_default(&mut dag);
 
-        // TODO didn't feel like MaybeUninit shenanigans but I do want to try and make
-        // this fully allocation-free eventually
-        let mut layers = Vec::with_capacity(L);
+        let mut layers = [const { MaybeUninit::uninit() }; L];
 
-        layers.push(Layer::new(&mut dag, &input));
+        layers[0].write(dag.new_layer(&input));
 
         for i in 1..L {
-            layers.push(Layer::new(&mut dag, &layers[i - 1]));
+            layers[i].write(dag.new_layer(unsafe { layers[i - 1].assume_init_ref() }));
         }
 
-        let layers = layers.into_iter().next_chunk().unwrap();
+        let layers = layers.into_iter().map(|m| unsafe { m.assume_init() }).next_chunk().unwrap();
 
-        let output = Layer::new(&mut dag, &layers[L - 1]);
+        let output = dag.new_layer(&layers[L - 1]);
 
         Self { dag, input, layers, output }
     }
