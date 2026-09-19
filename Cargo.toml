@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 rand = "0.10.2"
 random = "0.14.1"
+
+[profile.release]
+lto = true
+codegen-units = 1

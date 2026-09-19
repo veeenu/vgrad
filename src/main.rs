@@ -1,6 +1,7 @@
 #![feature(iter_array_chunks)]
 
 use std::f32::consts::PI;
+use std::time::Instant;
 
 use random::Source;
 use vgrad::{MeanSquareLoss, MultilayerPerceptron};
@@ -45,12 +46,14 @@ fn main() {
     let lr = 0.03;
 
     for i in 0..10000 {
+        let start = Instant::now();
         let mut total_loss = 0f32;
         for (xs, ys) in x.iter().copied().zip(y.iter().copied()) {
             loss.apply(&mut mlp, xs, ys, lr);
             total_loss += loss.value(&mut mlp);
         }
-        println!("Epoch {i:>6}. Loss: {total_loss}");
+        let elapsed = start.elapsed();
+        println!("Epoch {i:>6}. Loss: {total_loss}. Took: {elapsed:?}");
         println!("    n({:?}) = {:?}, {:?}", x[0], mlp.eval(&x[0]), y[0]);
         println!("    n({:?}) = {:?}, {:?}", x[1], mlp.eval(&x[1]), y[1]);
     }
